@@ -72,7 +72,7 @@ pipeline {
 
                 // 1. Copy the JAR artifact to the remote server using SSH/SCP
                 // NOTE: This assumes Jenkins has SSH credentials configured for the DEPLOY_USER
-                sh "scp ${JAR_PATH} ${DEPLOY_USER}@${DEPLOY_HOST}:${DEPLOY_DIR}"
+                sh "scp ${env.JAR_PATH} ${env.DEPLOY_USER}@${env.DEPLOY_HOST}:${env.DEPLOY_DIR}"
 
                 // 2. Restart the application on the remote server
                 // Example: Stop existing service, then start the new JAR
