@@ -4,7 +4,7 @@ pipeline {
 
 environment {
     // Change this to match your Spring Boot JAR name in /target directory
-    APP_NAME = 'my-springboot-app-0.0.1-SNAPSHOT.jar' 
+    APP_NAME = 'demo-0.0.1-SNAPSHOT.jar' 
     REMOTE_USER = 'jenkins-deploy' // User on App Server
     REMOTE_HOST = '172.31.20.108' 
     DEPLOY_DIR = '/home/jenkins-deploy/app'
