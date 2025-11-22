@@ -49,7 +49,7 @@ pipeline {
                 echo "Copying JAR to app server ${APP_SERVER}..."
                 sshagent (credentials: [env.SSH_CRED_ID]) {
                     sh """
-                        set -e
+                        set -x
                         # Find the built jar
                         JAR_FILE=\$(ls target/*.jar | head -n 1)
                         echo "Built JAR: \$JAR_FILE"
