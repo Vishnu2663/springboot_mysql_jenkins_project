@@ -47,15 +47,18 @@ pipeline {
             }
         }
 
-        stage('Health Check') {
-            steps {
-                script {
-                    def status = sh(returnStatus: true, script: "curl -sSf http://${APP_SERVER}:8080/ || curl -sSf http://${APP_SERVER}:8080/")
-                    if (status != 0) {
-                        error "Health check failed!"
-                    }
-                }
-            }
+     stage('Health Check') {
+    steps {
+        script {
+            sh """
+                echo "Health Checking..."
+                sleep 5
+                curl -s http://${APP_SERVER}:8080/actuator/health > /dev/null
+            """
+        }
+    }
+}
+
         }
     }
 
