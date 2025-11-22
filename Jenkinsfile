@@ -13,7 +13,7 @@ pipeline {
     stages {
         stage('Checkout') {
             steps {
-                git branch: "${GIT_BRANCH}", url: 'https://github.com/yourname/your-spring-boot-repo.git'
+                git branch: "${GIT_BRANCH}", url: 'https://github.com/Vishnu2663/springboot_cicd_jenkins_project.git'
             }
         }
 
