@@ -134,3 +134,6 @@ Save.
 # Should show: active (running).
 
 ## finally build the project through jenkins and paste the public ip of app server with :port number ex: public ip:8080
+Here is a look at the application dashboard:
+
+![A screenshot of the main project dashboard](images/s1.png)
