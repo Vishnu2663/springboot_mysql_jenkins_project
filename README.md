@@ -1,5 +1,5 @@
 ### Procedure to deploy springboot application using CICD without docker file
-#Take 2 Servers: 1.Jenkins  (AMI as ubuntu 22.04 lts and instance type as 2cpu ram and 4gb)  
+Take 2 Servers: 1.Jenkins  (AMI as ubuntu 22.04 lts and instance type as 2cpu ram and 4gb)  
                 2.App      (AMI as ubuntu 22.04 lts and instance type as 2cpu ram and 4gb) 
 And connect to mobaxterm
 Install java in both server in ubuntu user
