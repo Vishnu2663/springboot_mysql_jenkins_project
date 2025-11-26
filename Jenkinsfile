@@ -1,49 +1,74 @@
 pipeline {
     agent any
 
-    environment {
-        APP_SERVER_IP = '172.31.16.31'  //private ip of app_server
-        DEPLOY_USER   = 'deploy'
-        JAR_NAME      = 'demo-0.0.1-SNAPSHOT.jar '  //jar file name in target
-        REMOTE_PATH   = '/opt/myapp/app.jar'
+    tools {
+        maven 'maven'
     }
 
     stages {
-        stage('Checkout') {
-            steps {
-                git branch: 'main',
-                    url: 'https://github.com/Vishnu2663/springboot_cicd_jenkins_project.git'
-            }
-        }
 
         stage('Build') {
             steps {
+                echo "Running Maven Build..."
                 sh 'mvn clean package -DskipTests'
             }
-        }
-
-        stage('Copy JAR to App Server') {
-            steps {
-                sh '''
-                scp -o StrictHostKeyChecking=no target/$JAR_NAME ${DEPLOY_USER}@${APP_SERVER_IP}:${REMOTE_PATH}
-                '''
+            post {
+                success { echo "Build SUCCESS ✔" }
+                failure { echo "Build FAILED ❌" }
+                always  { echo "Build FINISHED" }
             }
         }
 
-        stage('Restart Service on App Server') {
+        stage('Deploy') {
             steps {
-                sh '''
-                ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${APP_SERVER_IP} "sudo -n /usr/bin/systemctl restart myapp.service"
-                '''
-            }
-        }
+                echo "Deploying Spring Boot App on 8088..."
+                sh '''#!/bin/bash
+                set -e
 
-        stage('Check Service Status') {
-            steps {
-                sh '''
-                ssh -o StrictHostKeyChecking=no ${DEPLOY_USER}@${APP_SERVER_IP} "sudo -n /usr/bin/systemctl status myapp.service --no-pager"
+                JAR="spring_app_sak-0.0.1-SNAPSHOT.jar"
+                PATH_JAR="target/$JAR"
+                LOG="/tmp/app8088.log"
+
+                echo "Removing old log..."
+                rm -f "$LOG"
+
+                echo "Stopping old running app..."
+                if pgrep -f "$JAR" > /dev/null; then
+                    echo "Old app found → stopping..."
+                    pkill -f "$JAR"
+                    sleep 5
+                else
+                    echo "No old app running."
+                fi
+
+                echo "Starting new app..."
+                nohup java -jar "$PATH_JAR" > "$LOG" 2>&1 &
+
+                echo "Waiting 15 seconds..."
+                sleep 15
+
+                if pgrep -f "$JAR" > /dev/null; then
+                    echo "✔ Application started successfully!"
+                else
+                    echo "❌ Application failed to start!"
+                    echo "===== APP LOG ====="
+                    cat "$LOG"
+                    echo "===================="
+                    exit 1
+                fi
                 '''
             }
+            post {
+                success { echo "Deploy SUCCESS ✔" }
+                failure { echo "Deploy FAILED ❌" }
+                always  { echo "Deploy FINISHED" }
+            }
         }
+    }
+
+    post {
+        success { echo "PIPELINE SUCCESS ✔" }
+        failure { echo "PIPELINE FAILED ❌" }
+        always  { echo "PIPELINE FINISHED" }
     }
 }
