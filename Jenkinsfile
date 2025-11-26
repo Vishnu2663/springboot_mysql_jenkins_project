@@ -2,73 +2,102 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven'
+        maven 'maven'      // Your Maven name in Jenkins
+    }
+
+    environment {
+        GIT_URL = "https://github.com/Vishnu2663/springboot_mysql_jenkins_project.git"
+        CREDS = "git-credentials-id"
+        BUILD_JAR = ""
     }
 
     stages {
 
-        stage('Build') {
+        stage('Checkout') {
             steps {
-                echo "Running Maven Build..."
-                sh 'mvn clean package -DskipTests'
+                git branch: 'main',
+                    url: "${GIT_URL}",
+                    credentialsId: "${CREDS}"
             }
             post {
-                success { echo "Build SUCCESS ✔" }
-                failure { echo "Build FAILED ❌" }
-                always  { echo "Build FINISHED" }
+                success { echo "Checkout successful" }
+                failure { echo "Checkout failed" }
+                always  { echo "Checkout stage completed" }
             }
         }
 
-        stage('Deploy') {
+        stage('Maven Build') {
             steps {
-                echo "Deploying Spring Boot App on 8088..."
-                sh '''#!/bin/bash
-                set -e
-
-                JAR="spring_app_sak-0.0.1-SNAPSHOT.jar"
-                PATH_JAR="target/$JAR"
-                LOG="/tmp/app8088.log"
-
-                echo "Removing old log..."
-                rm -f "$LOG"
-
-                echo "Stopping old running app..."
-                if pgrep -f "$JAR" > /dev/null; then
-                    echo "Old app found → stopping..."
-                    pkill -f "$JAR"
-                    sleep 5
-                else
-                    echo "No old app running."
-                fi
-
-                echo "Starting new app..."
-                nohup java -jar "$PATH_JAR" > "$LOG" 2>&1 &
-
-                echo "Waiting 15 seconds..."
-                sleep 15
-
-                if pgrep -f "$JAR" > /dev/null; then
-                    echo "✔ Application started successfully!"
-                else
-                    echo "❌ Application failed to start!"
-                    echo "===== APP LOG ====="
-                    cat "$LOG"
-                    echo "===================="
-                    exit 1
-                fi
-                '''
+                sh "mvn clean package -DskipTests"
             }
             post {
-                success { echo "Deploy SUCCESS ✔" }
-                failure { echo "Deploy FAILED ❌" }
-                always  { echo "Deploy FINISHED" }
+                success { echo "Build successful" }
+                failure { echo "Build failed" }
+                always  { echo "Maven Build completed" }
+            }
+        }
+
+        stage('Detect JAR Name') {
+            steps {
+                script {
+                    BUILD_JAR = sh(
+                        script: "ls target/*.jar | grep -v 'original' | head -n 1",
+                        returnStdout: true
+                    ).trim()
+
+                    if (!BUILD_JAR) {
+                        error("❌ No JAR file found in target/ directory")
+                    }
+
+                    echo "Detected JAR File: ${BUILD_JAR}"
+                }
+            }
+            post {
+                success { echo "JAR detection successful" }
+                failure { echo "JAR detection failed" }
+                always  { echo "JAR detection stage completed" }
+            }
+        }
+
+        stage('Run JAR with Conditions') {
+            steps {
+                script {
+
+                    echo "Checking for existing running application..."
+
+                    def pid = sh(
+                        script: "pgrep -f app.jar || true",
+                        returnStdout: true
+                    ).trim()
+
+                    if (pid) {
+                        echo "⚠ Old application running with PID ${pid}. Stopping..."
+                        sh "kill -9 ${pid}"
+                    } else {
+                        echo "No running instance found."
+                    }
+
+                    echo "Removing old app.jar (if exists)"
+                    sh "rm -f app.jar"
+
+                    echo "Copying new JAR to app.jar"
+                    sh "cp ${BUILD_JAR} app.jar"
+
+                    echo "Starting Spring Boot on port 8088..."
+                    sh "nohup java -jar app.jar --server.port=8088 > app.log 2>&1 &"
+                }
+            }
+            post {
+                success { echo "Application started successfully" }
+                failure { echo "Application failed to start" }
+                always  { echo "Run JAR stage completed" }
             }
         }
     }
 
     post {
-        success { echo "PIPELINE SUCCESS ✔" }
-        failure { echo "PIPELINE FAILED ❌" }
-        always  { echo "PIPELINE FINISHED" }
+        success { echo "🎉 Pipeline completed successfully!" }
+        failure { echo "❌ Pipeline failed!" }
+        always  { echo "🏁 Pipeline ended." }
     }
 }
