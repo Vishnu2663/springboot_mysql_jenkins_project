@@ -2,13 +2,13 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven'
+        maven 'maven'      // Your Maven name in Jenkins
     }
 
     environment {
         GIT_URL = "https://github.com/Vishnu2663/springboot_mysql_jenkins_project.git"
-        CREDS   = "git-credentials-id"
-        APP_JAR = ""
+        CREDS = "git-credentials-id"
+        BUILD_JAR = ""
     }
 
     stages {
@@ -20,54 +20,50 @@ pipeline {
                     credentialsId: "${CREDS}"
             }
             post {
-                success { echo "✅ Checkout successful" }
-                failure { echo "❌ Checkout failed" }
+                success { echo "Checkout successful" }
+                failure { echo "Checkout failed" }
                 always  { echo "Checkout stage completed" }
             }
         }
 
-        stage('Build') {
+        stage('Maven Build') {
             steps {
-                echo "Running Maven build..."
-                sh '''
-                    mvn clean package -DskipTests
-                    echo "Listing target directory:"
-                    ls -lh target/
-                '''
+                sh "mvn clean package -DskipTests"
             }
             post {
-                success { echo "✅ Build successful" }
-                failure { echo "❌ Build failed" }
-                always  { echo "Build stage completed" }
+                success { echo "Build successful" }
+                failure { echo "Build failed" }
+                always  { echo "Maven Build completed" }
             }
         }
 
-        stage('Detect JAR') {
+        stage('Detect JAR Name') {
             steps {
                 script {
-                    env.APP_JAR = sh(
-                        script: "ls target/*.jar | grep -v original | head -n 1",
+                    BUILD_JAR = sh(
+                        script: "ls target/*.jar | grep -v 'original' | head -n 1",
                         returnStdout: true
                     ).trim()
 
-                    if (!env.APP_JAR) {
-                        error("❌ No JAR file found in target directory!")
+                    if (!BUILD_JAR) {
+                        error("❌ No JAR file found in target/ directory")
                     }
 
-                    echo "✅ Detected JAR: ${env.APP_JAR}"
+                    echo "Detected JAR File: ${BUILD_JAR}"
                 }
             }
             post {
-                success { echo "✅ JAR detection successful" }
-                failure { echo "❌ JAR detection failed" }
-                always  { echo "Detect JAR stage completed" }
+                success { echo "JAR detection successful" }
+                failure { echo "JAR detection failed" }
+                always  { echo "JAR detection stage completed" }
             }
         }
 
-        stage('Deploy') {
+        stage('Run JAR with Conditions') {
             steps {
                 script {
-                    echo "Checking for existing running app..."
+
+                    echo "Checking for existing running application..."
 
                     def pid = sh(
                         script: "pgrep -f app.jar || true",
@@ -75,51 +71,33 @@ pipeline {
                     ).trim()
 
                     if (pid) {
-                        echo "⚠ Stopping old app with PID: ${pid}"
+                        echo "⚠ Old application running with PID ${pid}. Stopping..."
                         sh "kill -9 ${pid}"
-                        sleep 5
                     } else {
-                        echo "✅ No running instance found."
+                        echo "No running instance found."
                     }
 
-                    echo "Removing old app.jar"
+                    echo "Removing old app.jar (if exists)"
                     sh "rm -f app.jar"
 
-                    echo "Copying new JAR as app.jar"
-                    sh "cp ${env.APP_JAR} app.jar"
+                    echo "Copying new JAR to app.jar"
+                    sh "cp ${BUILD_JAR} app.jar"
 
                     echo "Starting Spring Boot on port 8088..."
-                    sh """
-                        nohup java -jar app.jar --server.port=8088 > app.log 2>&1 &
-                    """
-
-                    sleep 12
-
-                    def newPid = sh(
-                        script: "pgrep -f app.jar || true",
-                        returnStdout: true
-                    ).trim()
-
-                    if (!newPid) {
-                        echo "======== APPLICATION LOG ========"
-                        sh "cat app.log"
-                        error("❌ Application failed to start!")
-                    } else {
-                        echo "✅ Application started successfully with PID ${newPid}"
-                    }
+                    sh "nohup java -jar app.jar --server.port=8088 > app.log 2>&1 &"
                 }
             }
             post {
-                success { echo "✅ Deploy successful" }
-                failure { echo "❌ Deploy failed" }
-                always  { echo "Deploy stage completed" }
+                success { echo "Application started successfully" }
+                failure { echo "Application failed to start" }
+                always  { echo "Run JAR stage completed" }
             }
         }
     }
 
     post {
-        success { echo "🎉 PIPELINE COMPLETED SUCCESSFULLY" }
-        failure { echo "❌ PIPELINE FAILED" }
-        always  { echo "🏁 PIPELINE FINISHED" }
+        success { echo "🎉 Pipeline completed successfully!" }
+        failure { echo "❌ Pipeline failed!" }
+        always  { echo "🏁 Pipeline ended." }
     }
 }
