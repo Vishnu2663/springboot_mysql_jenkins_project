@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-        maven 'maven'
+        maven 'maven'      // Your Maven installation name in Jenkins
     }
 
     environment {
@@ -29,9 +29,16 @@ pipeline {
         stage('Maven Build') {
             steps {
                 sh '''
+                    echo "Current directory:"
+                    pwd
+
+                    echo "Listing files before build:"
+                    ls -R
+
                     mvn clean package -DskipTests
-                    echo "Listing target directory:"
-                    ls -lh target/
+
+                    echo "Listing files after build:"
+                    ls -R
                 '''
             }
             post {
@@ -44,16 +51,20 @@ pipeline {
         stage('Detect JAR Name') {
             steps {
                 script {
+                    echo "🔍 Searching for JAR file (excluding *original* JARs)..."
+
+                    // Search up to 4 levels deep for any .jar that is not *original*
                     env.APP_JAR = sh(
-                        script: "ls target/*.jar | grep -v original | head -n 1",
+                        script: "find . -maxdepth 4 -type f -name '*.jar' ! -name '*original*' | head -n 1",
                         returnStdout: true
                     ).trim()
 
                     if (!env.APP_JAR) {
-                        error("❌ No JAR file found in target directory")
+                        sh 'echo "Workspace tree for debugging:"; pwd; ls -R'
+                        error("❌ No JAR file found anywhere in workspace (checked with find)")
                     }
 
-                    echo "✅ Detected JAR: ${env.APP_JAR}"
+                    echo "✅ Detected JAR File: ${env.APP_JAR}"
                 }
             }
             post {
@@ -63,51 +74,51 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
+        stage('Run JAR with Conditions') {
             steps {
                 script {
+                    echo "Checking for existing running application..."
 
-                    echo "Stopping old application if running..."
+                    // Stop any previous app.jar started by Jenkins
                     sh "pkill -f app.jar || true"
 
-                    echo "Removing old app.jar"
+                    echo "Removing old app.jar (if exists)"
                     sh "rm -f app.jar"
 
-                    echo "Copying new JAR to app.jar"
+                    echo "Copying new JAR (${env.APP_JAR}) to app.jar"
                     sh "cp ${env.APP_JAR} app.jar"
 
                     echo "Starting Spring Boot on port 8088..."
-                    sh '''
-                        nohup java -jar app.jar --server.port=8088 > app.log 2>&1 &
-                    '''
+                    sh "nohup java -jar app.jar --server.port=8088 > app.log 2>&1 &"
 
+                    echo "Waiting 12 seconds for the app to start..."
                     sleep 12
 
-                    def newPid = sh(
+                    def pid = sh(
                         script: "pgrep -f app.jar || true",
                         returnStdout: true
                     ).trim()
 
-                    if (!newPid) {
-                        echo "======== APPLICATION LOG ========"
-                        sh "cat app.log"
-                        error("❌ Application failed to start!")
+                    if (pid) {
+                        echo "✅ Application started successfully with PID ${pid}"
                     } else {
-                        echo "✅ Application started successfully with PID ${newPid}"
+                        echo "❌ Application failed to start, printing app.log:"
+                        sh "cat app.log || true"
+                        error("Application failed to start, see app.log above")
                     }
                 }
             }
             post {
                 success { echo "✅ Application started successfully" }
                 failure { echo "❌ Application failed to start" }
-                always  { echo "Deploy stage completed" }
+                always  { echo "Run JAR stage completed" }
             }
         }
     }
 
     post {
-        success { echo "🎉 PIPELINE COMPLETED SUCCESSFULLY!" }
-        failure { echo "❌ PIPELINE FAILED!" }
-        always  { echo "🏁 PIPELINE ENDED." }
+        success { echo "🎉 Pipeline completed successfully!" }
+        failure { echo "❌ Pipeline failed!" }
+        always  { echo "🏁 Pipeline ended." }
     }
 }
